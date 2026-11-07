@@ -1,78 +1,35 @@
 import * as THREE from 'three'
+import {Vector3} from "three";
 
-/**
- * Defines the components of the puzzle
- */
-export interface IPuzzle {
-    readonly faces: Face[];
-    readonly rotations: Rotation[]
-}
-
-/**
- * Represents a face of the puzzle
- */
-export class Face {
-    /**
-     * The list of stickers on that face
-     */
-    public readonly stickers: Sticker[]
-
-    /**
-     * The direction where the face is facing.
-     * The vector is assumed to be normalized and orthogonal to "up"
-     */
-    public readonly orientation: THREE.Vector3;
-
-    /**
-     * The up direction of the face, to orient it in the correct direction.
-     * The vector is assumed to be normalized and orthogonal to orientation
-     */
-    public readonly up: THREE.Vector3
-
-    /**
-     * The distance between the origin and the center of the face.
-     */
-    public readonly distanceFromCenter: number;
+export class RotationsContainer {
+    private readonly axesRotations: AxisRotations[]
+    public readonly rotations: ReadonlyArray<Rotation>
 
 
-    constructor(stickers: Sticker[], orientation: THREE.Vector3, up: THREE.Vector3, distanceFromCenter: number) {
-        this.stickers = stickers;
-        this.orientation = orientation;
-        this.up = up;
-        this.distanceFromCenter = distanceFromCenter;
+    constructor(axesRotations: AxisRotations[]) {
+        this.axesRotations = axesRotations;
+        this.rotations = this.axesRotations.flatMap(a => a.rotations);
+    }
+
+    getRandomMove(): Move {
+        const rotation = this.rotations[Math.floor(Math.random() * this.rotations.length)];
+        let position = Math.floor((rotation.nbPositions - 1) * Math.random()) + 1;
+        if (position > rotation.nbPositions / 2) {
+            position -= rotation.nbPositions
+        }
+
+        return new Move(rotation, position);
     }
 }
 
-/**
- * Represents a sticker on the puzzle
- */
-export class Sticker {
-    /**
-     * The position of the sticker on the 2D plane
-     */
-    public readonly position: THREE.Vector2;
-
-    /**
-     * The shape of the sticker
-     */
-    public readonly shape: THREE.Shape;
-
-    /**
-     * The angle of rotation of the sticker, in radians
-     */
-    public readonly rotation: number;
-
-    /**
-     * By how much this sticker should be scaled
-     */
-    public readonly scale: number;
+export class AxisRotations {
+    public readonly axis: THREE.Vector3
+    public readonly rotations: ReadonlyArray<Rotation>
 
 
-    constructor(position: THREE.Vector2, shape: THREE.Shape, rotation: number, scale: number) {
-        this.position = position;
-        this.shape = shape;
-        this.rotation = rotation;
-        this.scale = scale;
+    constructor(axis: Vector3, rotations: Rotation[]) {
+        this.axis = axis;
+        this.rotations = rotations;
     }
 }
 

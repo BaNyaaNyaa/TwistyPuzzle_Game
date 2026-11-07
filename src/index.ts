@@ -1,8 +1,9 @@
 import RepeatRotationScene from "./scene/RepeatRotationScene";
-import PyraminxPuzzle from "./puzzle/puzzles/Pyraminx";
+import {CubeTwistyPuzzle} from "./puzzle/puzzles/CubeTwistyPuzzle";
+import {PyraminxTwistyPuzzle} from "./puzzle/puzzles/PyraminxTwistyPuzzle";
 
 const repeatedRotationScene = new RepeatRotationScene();
-repeatedRotationScene.setup(new PyraminxPuzzle(7));
+repeatedRotationScene.setup(new PyraminxTwistyPuzzle(3));
 repeatedRotationScene.startNewTween()
 
 function render() {

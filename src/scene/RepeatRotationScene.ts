@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import PuzzleHandler from "../puzzle/Handler";
 import * as TWEEN from "@tweenjs/tween.js";
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
-import {IPuzzle} from "../puzzle/PuzzleDefinition";
+import {type IPuzzleHandler, PuzzleHandler} from "../puzzle/Handler";
+import TwistyPuzzleDefinition from "../puzzle/definition/twisty_puzzle/TwistyPuzzleDefinition";
 
 /**
  * Scene used to debug puzzle and rotation systems
@@ -13,7 +13,7 @@ export default class RepeatRotationScene {
     private renderer : THREE.WebGLRenderer;
     private group: THREE.Object3D;
     private tween: TWEEN.Tween | null;
-    private puzzleHandler: PuzzleHandler | null;
+    private puzzleHandler: IPuzzleHandler | null;
 
 
     public constructor() {
@@ -25,7 +25,7 @@ export default class RepeatRotationScene {
         this.puzzleHandler = null;
     }
 
-    public setup(puzzle: IPuzzle) {
+    public setup(puzzle: TwistyPuzzleDefinition) {
         // Setup canvas
         this.renderer.setSize( window.innerWidth, window.innerHeight );
         document.body.appendChild( this.renderer.domElement );
@@ -36,11 +36,8 @@ export default class RepeatRotationScene {
         // Add lights
         const color = 0xFFFFFF;
         const intensity = 3;
-        const light = new THREE.DirectionalLight(color, intensity);
-        const light2 = new THREE.DirectionalLight(color, intensity);
-        light.position.set(2, 2, 2);
-        light2.position.set(-3, -3, -3);
-        this.scene.add(light, light2);
+        const light = new THREE.AmbientLight(color, intensity)
+        this.scene.add(light);
 
         // Add camera controls and position it
         const controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -50,7 +47,7 @@ export default class RepeatRotationScene {
         // Add the group used to store rotated stickers
         this.scene.add(this.group);
 
-        this.puzzleHandler = new PuzzleHandler((puzzle));
+        this.puzzleHandler = new PuzzleHandler(puzzle);
 
         for (const o of this.puzzleHandler.get3dObjects()) {
             this.scene.attach(o);
