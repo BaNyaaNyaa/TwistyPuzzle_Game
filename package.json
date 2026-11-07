@@ -33,6 +33,7 @@
     "webpack-merge": "^6.0.1"
   },
   "dependencies": {
+    "@tweenjs/tween.js": "^25.0.0",
     "three": "^0.187.0"
   }
 }
