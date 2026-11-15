@@ -1,37 +1,4 @@
 import * as THREE from 'three'
-import {Vector3} from "three";
-
-export class RotationsContainer {
-    private readonly axesRotations: AxisRotations[]
-    public readonly rotations: ReadonlyArray<Rotation>
-
-
-    constructor(axesRotations: AxisRotations[]) {
-        this.axesRotations = axesRotations;
-        this.rotations = this.axesRotations.flatMap(a => a.rotations);
-    }
-
-    getRandomMove(): Move {
-        const rotation = this.rotations[Math.floor(Math.random() * this.rotations.length)];
-        let position = Math.floor((rotation.nbPositions - 1) * Math.random()) + 1;
-        if (position > rotation.nbPositions / 2) {
-            position -= rotation.nbPositions
-        }
-
-        return new Move(rotation, position);
-    }
-}
-
-export class AxisRotations {
-    public readonly axis: THREE.Vector3
-    public readonly rotations: ReadonlyArray<Rotation>
-
-
-    constructor(axis: Vector3, rotations: Rotation[]) {
-        this.axis = axis;
-        this.rotations = rotations;
-    }
-}
 
 /**
  * Represents a possible rotation on the puzzle

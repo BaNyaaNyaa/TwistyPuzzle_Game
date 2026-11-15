@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import {Cut} from "../../definition/cut/Cut";
-import {AxisRotations, Rotation, RotationsContainer} from "../../PuzzleDefinition";
+import {Rotation} from "../../PuzzleDefinition";
 
 /**
  * Contains all the cuts to apply to every pieces
@@ -29,29 +29,26 @@ export class CutsContainer {
         axisCutContainer.addCut(cut);
     }
 
-    buildRotationsContainer(): RotationsContainer {
-        return new RotationsContainer(
-            this.axisCuts.map(
-                axisCut => {
-                    const rotations: Rotation[] = []
-                    for (let i = 0 ; i < axisCut.cuts.length ; i++) {
-                        const currentCut = axisCut.cuts[i];
+    buildRotations(): Rotation[] {
+        return this.axisCuts.flatMap(
+            axisCut => {
+                const rotations: Rotation[] = []
+                for (let i = 0 ; i < axisCut.cuts.length ; i++) {
+                    const currentCut = axisCut.cuts[i];
 
-                        const currentCutEvaluator = currentCut.handler.getIsOnPositiveSideEvaluator();
-                        const previousCutEvaluator = i === 0 ? null : axisCut.cuts[i-1].handler.getIsOnPositiveSideEvaluator();
+                    const currentCutEvaluator = currentCut.handler.getIsOnPositiveSideEvaluator();
+                    const previousCutEvaluator = i === 0 ? null : axisCut.cuts[i-1].handler.getIsOnPositiveSideEvaluator();
 
-                        const evaluators = previousCutEvaluator === null
-                            ? (p: THREE.Vector3) => !currentCutEvaluator(p)
-                            : (p: THREE.Vector3) => !currentCutEvaluator(p) && previousCutEvaluator(p);
+                    const evaluators = previousCutEvaluator === null
+                        ? (p: THREE.Vector3) => !currentCutEvaluator(p)
+                        : (p: THREE.Vector3) => !currentCutEvaluator(p) && previousCutEvaluator(p);
 
-                        rotations.push(new Rotation(axisCut.axis, evaluators, currentCut.nbPositions))
-                    }
-                    const lastCut = axisCut.cuts[axisCut.cuts.length - 1]
-                    rotations.push(new Rotation(axisCut.axis, lastCut.handler.getIsOnPositiveSideEvaluator(), lastCut.nbPositions))
-
-                    return new AxisRotations(axisCut.axis, rotations);
+                    rotations.push(new Rotation(axisCut.axis, evaluators, currentCut.nbPositions))
                 }
-            )
+                const lastCut = axisCut.cuts[axisCut.cuts.length - 1]
+                rotations.push(new Rotation(axisCut.axis, lastCut.handler.getIsOnPositiveSideEvaluator(), lastCut.nbPositions))
+                return rotations;
+            }
         )
     }
 }
