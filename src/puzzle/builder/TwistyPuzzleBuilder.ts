@@ -22,7 +22,6 @@ export class TwistyPuzzleBuilder {
         for (const cut of this.twistyPuzzleDefinition.cuts) {
             cutContainer.addCut(cut);
             pieces = pieces.flatMap(p => cut.handler.splitPiece(p));
-            console.log(pieces.length)
         }
         return TwistyPuzzle.fromTwistyCubeBuilder(pieces, cutContainer.buildRotationsContainer());
     }

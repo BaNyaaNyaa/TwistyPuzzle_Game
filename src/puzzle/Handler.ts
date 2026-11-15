@@ -7,6 +7,7 @@ import {TwistyPuzzleBuilder} from "./builder/TwistyPuzzleBuilder";
 export interface IPuzzleHandler {
     get3dObjects(): THREE.Object3D[];
     getRandomMove(): Move
+    getAllRotations(): readonly Rotation[]
 }
 
 export class PuzzleHandler implements IPuzzleHandler {
@@ -59,7 +60,7 @@ export class PuzzleHandler implements IPuzzleHandler {
                     }
 
                     const geometry = new THREE.ExtrudeGeometry(shape, {bevelEnabled: false, depth: 1});
-                    const material = new THREE.MeshPhongMaterial({ color: Math.floor(0xffffff*Math.random()) });
+                    const material = new THREE.MeshPhongMaterial({ color: Math.floor(Math.random()*0xffffff) });
                     const mesh = new THREE.Mesh(geometry, material);
 
                     mesh.applyMatrix4(matrix);
@@ -85,5 +86,9 @@ export class PuzzleHandler implements IPuzzleHandler {
             return new Move(new Rotation(new THREE.Vector3, () => false, 1), 0);
         }
         return this.puzzle.rotationsContainer.getRandomMove()
+    }
+
+    getAllRotations(): readonly Rotation[] {
+        return this.puzzle.rotationsContainer.rotations
     }
 }
