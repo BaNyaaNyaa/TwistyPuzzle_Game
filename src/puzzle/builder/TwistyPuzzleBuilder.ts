@@ -3,15 +3,18 @@ import TwistyPuzzle from "../definition/twisty_puzzle/TwistyPuzzle";
 import {TwistyPuzzleBuilderFace, TwistyPuzzleBuilderPiece} from "./TwistyCubeContainer";
 import {CutsContainer} from "./cut/CutsContainer";
 import * as THREE from 'three'
+import MathUtil from "../../utils/MathUtil";
 
 /**
  * Create a twisty puzzle from its definition
  */
 export class TwistyPuzzleBuilder {
     private readonly twistyPuzzleDefinition: TwistyPuzzleDefinition
+    private readonly geometryContainer: VerticesToGeometryMap
 
     constructor(twistyPuzzleDefinition: TwistyPuzzleDefinition) {
         this.twistyPuzzleDefinition = twistyPuzzleDefinition;
+        this.geometryContainer = new VerticesToGeometryMap()
     }
 
     /**
@@ -59,13 +62,7 @@ export class TwistyPuzzleBuilder {
 
                 const vertices2d = verticesOnXyPlane.map(v => new THREE.Vector2(v.x - xCentroid, v.y - yCentroid))
 
-                const shape = new THREE.Shape();
-                shape.moveTo(vertices2d[vertices2d.length - 1].x, vertices2d[vertices2d.length - 1].y);
-                for (const vertex of vertices2d) {
-                    shape.lineTo(vertex.x, vertex.y);
-                }
-
-                const geometry = new THREE.ExtrudeGeometry(shape, {bevelEnabled: false, depth: 1});
+                const geometry = this.geometryContainer.getGeometryForVertices(vertices2d)
                 const material = new THREE.MeshPhongMaterial({ color: Math.floor(Math.random()*0xffffff) });
                 const mesh = new THREE.Mesh(geometry, material);
 
@@ -83,7 +80,6 @@ export class TwistyPuzzleBuilder {
                 objects3d.push(mesh);
             }
         }
-
         return new TwistyPuzzle(cutContainer.buildRotations(), objects3d)
     }
 
@@ -111,5 +107,44 @@ export class TwistyPuzzleBuilder {
             }
         }
         return vertices.map(v => piece.vertices[v]);
+    }
+}
+
+class VerticesToGeometryMap {
+    private readonly map: [THREE.Vector2[], THREE.BufferGeometry][]
+
+
+    constructor() {
+        this.map = []
+    }
+
+    getGeometryForVertices(vertices: THREE.Vector2[]): THREE.BufferGeometry {
+        for (const [key, geometry] of this.map) {
+            if (vertices.length !== key.length) {
+                continue
+            }
+
+           let isEqual = true;
+            for (let i = 0 ; isEqual && i < vertices.length ; i++) {
+                const vertex = vertices[i]
+                const keyVertex = key[i]
+                if (!MathUtil.equalFloat(new THREE.Vector2().subVectors(vertex, keyVertex).lengthSq(), 0)) {
+                    isEqual = false
+                }
+            }
+
+            if (isEqual) {
+                return geometry
+            }
+        }
+
+        const shape = new THREE.Shape();
+        shape.moveTo(vertices[vertices.length - 1].x, vertices[vertices.length - 1].y);
+        for (const vertex of vertices) {
+            shape.lineTo(vertex.x, vertex.y);
+        }
+        const geometry = new THREE.ExtrudeGeometry(shape, {bevelEnabled: false, depth: 1});
+        this.map.push([vertices, geometry])
+        return geometry
     }
 }
