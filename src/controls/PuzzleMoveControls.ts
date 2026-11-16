@@ -14,11 +14,9 @@ export class PuzzleMoveControls extends THREE.Controls<PuzzleMoveControlsEventMa
     private readonly currentPointerPosition: THREE.Vector2;
 
     private readonly raycaster: THREE.Raycaster;
-    private intersection: THREE.Intersection | null
-    private readonly clickedFacePlane: THREE.Plane
-    private readonly clickedPlanePosition: THREE.Vector3;
-    private dragRotation: Rotation | null
-    private readonly rotationDirection: THREE.Vector3
+    private clickData: ClickData | null
+    private dragData: DragData | null
+
     
     constructor(moveHandler: MoveHandler, camera: THREE.Camera, domElement?: HTMLElement | SVGElement | null) {
         super(camera, domElement);
@@ -27,11 +25,8 @@ export class PuzzleMoveControls extends THREE.Controls<PuzzleMoveControlsEventMa
         this.currentPointerPosition = new THREE.Vector2();
 
         this.raycaster = new THREE.Raycaster()
-        this.intersection = null;
-        this.clickedFacePlane = new THREE.Plane();
-        this.clickedPlanePosition = new THREE.Vector3();
-        this.dragRotation = null;
-        this.rotationDirection = new THREE.Vector3();
+        this.clickData = null
+        this.dragData = null
 
         if (domElement !== undefined && domElement !== null) {
             this.connect(domElement);
@@ -54,6 +49,26 @@ export class PuzzleMoveControls extends THREE.Controls<PuzzleMoveControlsEventMa
         this.domElement?.removeEventListener('pointerup', this.onPointerUp);
     }
 
+    get hasFocus(): boolean {
+        return this.clickData !== null
+    }
+
+    get isDragging(): boolean {
+        return this.dragData !== null
+    }
+
+    stopDrag() {
+        if (this.hasFocus) {
+            this.dispatchEvent({type: 'moveend'})
+            if (this.isDragging) {
+                const draggingData = this.dragData!
+                this.moveHandler.completeRotation(draggingData.rotation, draggingData.angle)
+            }
+        }
+        this.clickData = null;
+        this.dragData = null
+    }
+
     private onPointerDown = (event: PointerEventInit) => {
         if (this.moveHandler.isBusy || (event.pointerType === 'mouse' && event.buttons !== 1)) {
             return;
@@ -61,38 +76,34 @@ export class PuzzleMoveControls extends THREE.Controls<PuzzleMoveControlsEventMa
         this.updatePointer(event);
 
         const hits = this.raycaster.intersectObjects(this.moveHandler.puzzle.objects3d);
-        this.intersection = hits.length === 0 ? null : hits[0]
-        if (this.intersection !== null) {
-            const normal = new THREE.Vector3().copy(this.intersection.face!.normal)
-            normal.transformDirection(this.intersection.object.matrixWorld)
-            normal.normalize()
-            this.clickedFacePlane.normal.copy(normal);
-            this.clickedFacePlane.constant = 0
-            this.clickedFacePlane.constant = -this.clickedFacePlane.distanceToPoint(this.intersection.point)
-            this.raycaster.ray.intersectPlane(this.clickedFacePlane, this.clickedPlanePosition);
-            this.dispatchEvent({type: 'movestart'})
+        if (hits.length === 0) {
+            return
         }
+
+        const intersection = hits[0]
+        this.clickData = new ClickData(intersection, this.raycaster)
+        this.dispatchEvent({type: 'movestart'})
+
     }
 
     private onPointerMove = (event: PointerEventInit) => {
-        if (this.intersection === null) {
+        if (!this.hasFocus) {
             return;
         }
 
         this.updatePointer(event);
 
-        const newPlanePosition = this.raycaster.ray.intersectPlane(this.clickedFacePlane, new THREE.Vector3());
-        if (newPlanePosition === null) {
+        const delta = this.clickData!.getDeltaForNewPosition(this.raycaster)
+
+        if (delta === null) {
             return;
         }
 
-        const delta = new THREE.Vector3().subVectors(newPlanePosition, this.clickedPlanePosition);
-
         // If the cursor was moved far enough, find the correct rotation to use
-        if (delta.lengthSq() > 0.01 && this.dragRotation === null) {
+        if (delta.lengthSq() > 0.01 && !this.isDragging) {
             const rotations = this.moveHandler.puzzle.rotations
-                .filter(r => r.positionEvaluator(this.intersection!.object.getWorldPosition(new THREE.Vector3()))) // All the possible rotations for the clicked stickers
-                .filter(r => !MathUtil.equalFloat(Math.abs(r.axis.dot(this.clickedFacePlane.normal)), 1)); // Exclude the one perpendicular to it (makes for weird UX otherwise)
+                .filter(r => r.positionEvaluator(this.clickData!.worldPosition)) // All the possible rotations for the clicked stickers
+                .filter(r => !MathUtil.equalFloat(Math.abs(r.axis.dot(this.clickData!.faceNormal)), 1)); // Exclude the one perpendicular to it (makes for weird UX otherwise)
             const dragDirection = delta.clone().normalize();
 
             let bestRotation = rotations[0];
@@ -105,47 +116,93 @@ export class PuzzleMoveControls extends THREE.Controls<PuzzleMoveControlsEventMa
                 }
             }
 
-            this.dragRotation = bestRotation
-            this.rotationDirection.crossVectors(this.dragRotation.axis, this.clickedFacePlane.normal).normalize();
-            this.moveHandler.selectRotationObjects(this.dragRotation!)
+            this.dragData = new DragData(
+                bestRotation,
+                new THREE.Vector3().crossVectors(bestRotation.axis, this.clickData!.faceNormal).normalize()
+            )
+            this.moveHandler.selectRotationObjects(this.dragData.rotation)
         }
 
-        if (this.dragRotation !== null) {
-            this.moveHandler.rotateGroup(this.dragRotation!, delta.dot(this.rotationDirection));
+        if (this.isDragging) {
+            const dragging = this.dragData!
+            dragging.setAngleFromDeltaVector(delta)
+            this.moveHandler.rotateGroup(dragging.rotation, dragging.angle);
         }
     }
 
     private onPointerUp = (event: PointerEventInit) => {
-        main: {
-            if (this.intersection === null) {
-                break main; // Basically works like a cleanup goto
-            }
-            this.dispatchEvent({type: 'moveend'})
-            if (this.dragRotation === null) {
-                break main;
-            }
-
+        if (this.hasFocus && this.isDragging) {
             this.updatePointer(event);
 
-            const newPlanePosition = this.raycaster.ray.intersectPlane(this.clickedFacePlane, new THREE.Vector3());
-            if (newPlanePosition === null) {
-                return;
+            const delta = this.clickData!.getDeltaForNewPosition(this.raycaster)
+            if (delta === null) {
+                return
             }
-
-            const delta = new THREE.Vector3().subVectors(newPlanePosition, this.clickedPlanePosition);
-
-            const angle = delta.dot(this.rotationDirection)
-
-            this.moveHandler.completeRotation(this.dragRotation!, angle)
+            this.dragData!.setAngleFromDeltaVector(delta)
         }
-
-        this.intersection = null;
-        this.dragRotation = null;
+        this.stopDrag()
     }
 
     private updatePointer(event: PointerEventInit) {
         this.currentPointerPosition.set(2*event.clientX! / window.innerWidth - 1, -(2*event.clientY! / window.innerHeight - 1))
 
         this.raycaster.setFromCamera(this.currentPointerPosition, this.object)
+    }
+}
+
+class ClickData {
+    private readonly intersection: THREE.Intersection
+    private readonly facePlane: THREE.Plane
+    private readonly positionOnPlane: THREE.Vector3;
+    public readonly worldPosition: THREE.Vector3
+
+
+    constructor(intersection: THREE.Intersection, raycaster: THREE.Raycaster) {
+        this.intersection = intersection;
+
+        this.facePlane = new THREE.Plane()
+        this.facePlane.normal.copy(new THREE.Vector3().copy(intersection.face!.normal)
+            .transformDirection(intersection.object.matrixWorld)
+            .normalize())
+        this.facePlane.constant = -this.facePlane.distanceToPoint(this.intersection.point)
+
+        this.positionOnPlane = new THREE.Vector3()
+        raycaster.ray.intersectPlane(this.facePlane, this.positionOnPlane)
+
+        this.worldPosition = new THREE.Vector3()
+        this.intersection.object.getWorldPosition(this.worldPosition)
+    }
+
+    getDeltaForNewPosition(raycaster: THREE.Raycaster): THREE.Vector3 | null {
+        const newPlanePosition = raycaster.ray.intersectPlane(this.facePlane, new THREE.Vector3());
+        if (newPlanePosition === null) {
+            return null;
+        }
+
+        return new THREE.Vector3().subVectors(newPlanePosition, this.positionOnPlane);
+    }
+
+    get faceNormal(): THREE.Vector3 {
+        return this.facePlane.normal
+    }
+}
+
+class DragData {
+    public readonly rotation: Rotation
+    private readonly rotationDirection: THREE.Vector3
+    private _angle: number
+
+    constructor(rotation: Rotation, rotationDirection: THREE.Vector3) {
+        this.rotation = rotation;
+        this.rotationDirection = rotationDirection;
+        this._angle = 0;
+    }
+
+    get angle(): number {
+        return this._angle
+    }
+
+    setAngleFromDeltaVector(delta: THREE.Vector3) {
+        this._angle = delta.dot(this.rotationDirection)
     }
 }
