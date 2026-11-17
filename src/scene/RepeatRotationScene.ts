@@ -16,6 +16,7 @@ export default class RepeatRotationScene {
     private puzzle: TwistyPuzzle | null
     private moveHandler: MoveHandler | null
     private puzzleMoveControls: PuzzleMoveControls | null
+    private renderRequested: boolean
 
     public constructor() {
         this.scene = new THREE.Scene();
@@ -24,6 +25,7 @@ export default class RepeatRotationScene {
         this.puzzle = null;
         this.moveHandler = null
         this.puzzleMoveControls = null
+        this.renderRequested = false
     }
 
     public setup(puzzleDefinition: TwistyPuzzleDefinition) {
@@ -61,10 +63,25 @@ export default class RepeatRotationScene {
         this.puzzleMoveControls.addEventListener('moveend', () => {
             controls.enabled = true;
         })
+
+        controls.addEventListener('change', () => this.requestRender())
+        this.moveHandler.addEventListener('move', () => this.requestRender())
+
+        this.requestRender()
     }
 
-    public render() {
-        this.moveHandler?.updateTween()
+    public requestRender() {
+        if (!this.renderRequested) {
+            this.renderRequested = true
+            requestAnimationFrame((time) => this.render(time))
+        }
+    }
+
+    private render(time: number) {
+        this.renderRequested = false
+        if (this.moveHandler !== null && this.moveHandler.updateTween()) {
+            this.requestRender()
+        }
         this.renderer.render(this.scene, this.camera);
     }
 }
