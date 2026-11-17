@@ -11,27 +11,29 @@ import {MoveHandler} from "../puzzle/MoveHandler";
  */
 export default class RepeatRotationScene {
     private scene: THREE.Scene;
-    private camera: THREE.Camera;
+    private camera: THREE.PerspectiveCamera;
     private renderer : THREE.WebGLRenderer;
     private puzzle: TwistyPuzzle | null
     private moveHandler: MoveHandler | null
     private puzzleMoveControls: PuzzleMoveControls | null
     private renderRequested: boolean
+    private resizeObserver: ResizeObserver | null
 
     public constructor() {
+        const canvas = document.getElementById('main') as HTMLCanvasElement
+        this.renderer = new THREE.WebGLRenderer({antialias: true, canvas});
+        this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 10 );
-        this.renderer = new THREE.WebGLRenderer();
+        this.camera = new THREE.PerspectiveCamera( 75, canvas.clientWidth / canvas.clientHeight, 0.1, 10 );
         this.puzzle = null;
         this.moveHandler = null
         this.puzzleMoveControls = null
         this.renderRequested = false
+        this.resizeObserver = null
     }
 
     public setup(puzzleDefinition: TwistyPuzzleDefinition) {
-        // Setup canvas
-        this.renderer.setSize( window.innerWidth, window.innerHeight );
-        document.body.appendChild( this.renderer.domElement );
 
         // Add axes
         this.scene.add(new THREE.AxesHelper(1).setColors(0xff0000, 0x00ff00, 0x0000ff));
@@ -66,6 +68,17 @@ export default class RepeatRotationScene {
 
         controls.addEventListener('change', () => this.requestRender())
         this.moveHandler.addEventListener('move', () => this.requestRender())
+
+        this.resizeObserver = new ResizeObserver((entries) => {
+            const entry = entries[0]
+            const width = entry.contentRect.width;
+            const height = entry.contentRect.height;
+            this.renderer.setSize(width, height);
+            this.camera.aspect = width / height
+            this.camera.updateProjectionMatrix()
+            this.requestRender()
+        })
+        this.resizeObserver.observe(this.renderer.domElement.parentElement!)
 
         this.requestRender()
     }
