@@ -28,59 +28,14 @@ export class TwistyPuzzleBuilder {
             pieces = pieces.flatMap(p => cut.handler.splitPiece(p));
         }
 
-        const objects3d: THREE.Object3D[] = []
-        for (const piece of pieces) {
-            for (const face of piece.faces) {
-                const faceVertices = this.faceVerticesInOrder(piece, face)
-                const vertex1 = faceVertices[0]
-                const vertex2 = faceVertices[1]
-                const vertex3 = faceVertices[2]
-
-                const plane = new THREE.Plane().setFromCoplanarPoints(vertex1, vertex2, vertex3).normalize();
-
-                const xAxis = new THREE.Vector3().subVectors(vertex1, vertex2).normalize();
-                const yAxis = new THREE.Vector3().crossVectors(xAxis, plane.normal);
-                const matrix = new THREE.Matrix4().makeBasis(xAxis, yAxis, plane.normal);
-
-                const verticesOnXyPlane: THREE.Vector3[] = faceVertices.map(
-                    (v) => v.clone().applyMatrix4(matrix.clone().invert()));
-
-                const signedArea = verticesOnXyPlane.map((v_i, i) => {
-                    const v_ip1 = verticesOnXyPlane[(i + 1) % verticesOnXyPlane.length];
-                    return v_i.x * v_ip1.y - v_ip1.x * v_i.y
-                }).reduce((s, v) => s + v, 0) / 2;
-
-                const xCentroid = verticesOnXyPlane.map((v_i, i) => {
-                    const v_ip1 = verticesOnXyPlane[(i + 1) % verticesOnXyPlane.length];
-                    return (v_i.x + v_ip1.x) * (v_i.x * v_ip1.y - v_ip1.x * v_i.y)
-                }).reduce((s, v) => s + v, 0) / (6 * signedArea);
-
-                const yCentroid = verticesOnXyPlane.map((v_i, i) => {
-                    const v_ip1 = verticesOnXyPlane[(i + 1) % verticesOnXyPlane.length];
-                    return (v_i.y + v_ip1.y) * (v_i.x * v_ip1.y - v_ip1.x * v_i.y)
-                }).reduce((s, v) => s + v, 0) / (6 * signedArea);
-
-                const vertices2d = verticesOnXyPlane.map(v => new THREE.Vector2(v.x - xCentroid, v.y - yCentroid))
-
-                const geometry = this.geometryContainer.getGeometryForVertices(vertices2d)
-                const material = new THREE.MeshPhongMaterial({ color: Math.floor(Math.random()*0xffffff) });
-                const mesh = new THREE.Mesh(geometry, material);
-
-                mesh.applyMatrix4(matrix);
-                mesh.scale.set(0.9, 0.9, 0.01);
-
-                let position = new THREE.Vector3()
-                let quaternion = new THREE.Quaternion()
-                let scale = new THREE.Vector3()
-                matrix.decompose(position, quaternion, scale);
-                mesh.position.addScaledVector(plane.normal, -plane.constant)
-                    .addScaledVector(xAxis, xCentroid)
-                    .addScaledVector(yAxis, yCentroid);
-
-                objects3d.push(mesh);
-            }
-        }
-        return new TwistyPuzzle(cutContainer.buildRotations(), objects3d)
+        return new TwistyPuzzle(
+            cutContainer.buildRotations(),
+            pieces.flatMap(
+                p => p.faces.map(
+                    f => this.generateFaceObject3d(f, p)
+                )
+            )
+        )
     }
 
     private faceVerticesInOrder(piece: TwistyPuzzleBuilderPiece, face: TwistyPuzzleBuilderFace): THREE.Vector3[] {
@@ -107,6 +62,58 @@ export class TwistyPuzzleBuilder {
             }
         }
         return vertices.map(v => piece.vertices[v]);
+    }
+
+    private generateFaceObject3d(face: TwistyPuzzleBuilderFace, piece: TwistyPuzzleBuilderPiece): THREE.Object3D {
+        const faceVertices = this.faceVerticesInOrder(piece, face)
+        const vertex1 = faceVertices[0]
+        const vertex2 = faceVertices[1]
+        const vertex3 = faceVertices[2]
+
+        const plane = new THREE.Plane().setFromCoplanarPoints(vertex1, vertex2, vertex3).normalize();
+
+        const xAxis = new THREE.Vector3().subVectors(vertex1, vertex2).normalize();
+        const yAxis = new THREE.Vector3().crossVectors(xAxis, plane.normal);
+        const matrix = new THREE.Matrix4().makeBasis(xAxis, yAxis, plane.normal);
+
+        const verticesOnXyPlane: THREE.Vector3[] = faceVertices.map(
+            (v) => v.clone().applyMatrix4(matrix.clone().invert()));
+
+        const signedArea = verticesOnXyPlane.map((v_i, i) => {
+            const v_ip1 = verticesOnXyPlane[(i + 1) % verticesOnXyPlane.length];
+            return v_i.x * v_ip1.y - v_ip1.x * v_i.y
+        }).reduce((s, v) => s + v, 0) / 2;
+
+        const xCentroid = verticesOnXyPlane.map((v_i, i) => {
+            const v_ip1 = verticesOnXyPlane[(i + 1) % verticesOnXyPlane.length];
+            return (v_i.x + v_ip1.x) * (v_i.x * v_ip1.y - v_ip1.x * v_i.y)
+        }).reduce((s, v) => s + v, 0) / (6 * signedArea);
+
+        const yCentroid = verticesOnXyPlane.map((v_i, i) => {
+            const v_ip1 = verticesOnXyPlane[(i + 1) % verticesOnXyPlane.length];
+            return (v_i.y + v_ip1.y) * (v_i.x * v_ip1.y - v_ip1.x * v_i.y)
+        }).reduce((s, v) => s + v, 0) / (6 * signedArea);
+
+        const vertices2d = verticesOnXyPlane.map(v => new THREE.Vector2(v.x - xCentroid, v.y - yCentroid))
+
+        const geometry = this.geometryContainer.getGeometryForVertices(vertices2d)
+        const material = new THREE.MeshPhongMaterial({ color: this.twistyPuzzleDefinition.colorMap.get(face.index)! });
+        const mesh = new THREE.Mesh(geometry, material);
+
+        mesh.userData['faceId'] = face.index
+
+        mesh.applyMatrix4(matrix);
+        mesh.scale.set(0.9, 0.9, 0.01);
+
+        let position = new THREE.Vector3()
+        let quaternion = new THREE.Quaternion()
+        let scale = new THREE.Vector3()
+        matrix.decompose(position, quaternion, scale);
+        mesh.position.addScaledVector(plane.normal, -plane.constant)
+            .addScaledVector(xAxis, xCentroid)
+            .addScaledVector(yAxis, yCentroid);
+
+        return mesh
     }
 }
 

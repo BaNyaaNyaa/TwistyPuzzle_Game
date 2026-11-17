@@ -9,12 +9,17 @@ import PlaneCut from "../definition/cut/PlaneCut";
 export class CubeTwistyPuzzle implements TwistyPuzzleDefinition {
     public readonly solid: Solid
     private readonly _cuts: Cut[]
+    private readonly _colorMap: Map<number, THREE.Color>
 
     get cuts(): ReadonlyArray<Cut> {
         return this._cuts
     }
 
-    constructor(size: number) {
+    get colorMap(): ReadonlyMap<number, THREE.Color> {
+        return this._colorMap
+    }
+
+    constructor(size: number, colorMap?: Map<number, THREE.Color>) {
         this.solid = new CubeSolid()
         this._cuts = []
         const axes = [
@@ -31,5 +36,16 @@ export class CubeTwistyPuzzle implements TwistyPuzzleDefinition {
                 this._cuts.push(new PlaneCut(new THREE.Plane(axis, -distance), 4));
             }
         }
+
+        this._colorMap = colorMap !== undefined
+            ? colorMap
+            : new Map<number, THREE.Color>([
+                [0, new THREE.Color().setHex(0x0000ff)],
+                [1, new THREE.Color().setHex(0x00ff00)],
+                [2, new THREE.Color().setHex(0xffffff)],
+                [3, new THREE.Color().setHex(0xffff00)],
+                [4, new THREE.Color().setHex(0xff0000)],
+                [5, new THREE.Color().setHex(0xffa500)],
+            ])
     }
 }

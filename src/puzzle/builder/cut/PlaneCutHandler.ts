@@ -118,8 +118,8 @@ export default class PlaneCutHandler implements CutHandler {
                 }
             }
 
-            positivePiece.addFace(positiveFace);
-            negativePiece.addFace(negativeFace);
+            positivePiece.addFace(positiveFace, face.index);
+            negativePiece.addFace(negativeFace, face.index);
         }
 
         return [
@@ -195,7 +195,7 @@ class PieceSection {
     /**
      * The indices of the faces in PieceInfo
      */
-    public readonly faces: number[][]
+    public readonly faces: PieceSectionFace[]
 
     private readonly pieceInfo: PieceInfo
 
@@ -228,8 +228,9 @@ class PieceSection {
      * If the face has unattached vertices, create a new edge to complete the face
      *
      * @param face
+     * @param index
      */
-    addFace(face: number[]) {
+    addFace(face: number[], index: number) {
         if (face.length === 0) {
             return;
         }
@@ -249,7 +250,7 @@ class PieceSection {
             face.push(newEdgeIndex);
         }
 
-        this.faces.push(face);
+        this.faces.push(new PieceSectionFace(face, index));
     }
 
     /**
@@ -273,7 +274,19 @@ class PieceSection {
         })
         const oldToNewEdges = new Map(pieceEdges.map((e, i) => [e, i]))
 
-        const newFaces = this.faces.map(f => new TwistyPuzzleBuilderFace(f.map(e => oldToNewEdges.get(e)!)));
+        const newFaces = this.faces.map(
+            f => new TwistyPuzzleBuilderFace(f.edges.map(e => oldToNewEdges.get(e)!), f.index)
+        );
         return new TwistyPuzzleBuilderPiece(newVertices, newEdges, newFaces);
+    }
+}
+
+class PieceSectionFace {
+    public readonly edges: number[]
+    public readonly index: number
+
+    constructor(edges: number[], index: number) {
+        this.edges = edges;
+        this.index = index;
     }
 }

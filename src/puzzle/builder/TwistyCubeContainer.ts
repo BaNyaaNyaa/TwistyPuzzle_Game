@@ -9,20 +9,20 @@ export class TwistyPuzzleBuilderPiece {
     /**
      * The coordinates of each vertex
      */
-    public readonly vertices: ReadonlyArray<THREE.Vector3>
+    public readonly vertices: readonly THREE.Vector3[]
 
     /**
      * The edges of this piece
      */
-    public readonly edges: ReadonlyArray<TwistyPuzzleBuilderEdge>
+    public readonly edges: readonly TwistyPuzzleBuilderEdge[]
 
     /**
      * The list of faces on this piece
      */
-    public readonly faces: ReadonlyArray<TwistyPuzzleBuilderFace>
+    public readonly faces: readonly TwistyPuzzleBuilderFace[]
 
 
-    constructor(vertices: ReadonlyArray<THREE.Vector3>, edges: ReadonlyArray<TwistyPuzzleBuilderEdge>, faces: ReadonlyArray<TwistyPuzzleBuilderFace>) {
+    constructor(vertices: readonly THREE.Vector3[], edges: readonly TwistyPuzzleBuilderEdge[], faces: readonly TwistyPuzzleBuilderFace[]) {
         this.vertices = vertices;
         this.edges = edges;
         this.faces = faces;
@@ -37,7 +37,9 @@ export class TwistyPuzzleBuilderPiece {
         return new TwistyPuzzleBuilderPiece(
             solid.vertices,
             solid.edges.map(TwistyPuzzleBuilderEdge.fromEdgeSolid),
-            solid.faces.map(TwistyPuzzleBuilderFace.fromFaceSolid)
+            solid.faces.map(
+                (face: FaceSolid, index: number) => TwistyPuzzleBuilderFace.fromFaceSolid(face, index)
+            )
         )
     }
 }
@@ -81,14 +83,15 @@ export class TwistyPuzzleBuilderFace {
     /**
      * The indices of the edges this face is made of
      */
-    public readonly edges: ReadonlyArray<number>
+    public readonly edges: readonly number[]
+    public readonly index: number
 
-
-    constructor(edges: ReadonlyArray<number>) {
+    constructor(edges: readonly number[], index: number) {
         this.edges = edges;
+        this.index = index
     }
 
-    static fromFaceSolid(faceSolid: FaceSolid): TwistyPuzzleBuilderFace {
-        return new TwistyPuzzleBuilderFace(faceSolid.edges);
+    static fromFaceSolid(faceSolid: FaceSolid, index: number): TwistyPuzzleBuilderFace {
+        return new TwistyPuzzleBuilderFace(faceSolid.edges, index);
     }
 }

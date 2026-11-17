@@ -1,5 +1,6 @@
-import {Cut} from "../cut/Cut";
-import {Solid} from "../solid/Solid";
+import type {Cut} from "../cut/Cut";
+import type {Solid} from "../solid/Solid";
+import type * as THREE from 'three'
 
 /**
  * Defines a Twisty Puzzle
@@ -14,5 +15,7 @@ export default interface TwistyPuzzleDefinition {
     /**
      * The cuts to make on that solid
      */
-    readonly cuts: ReadonlyArray<Cut>
+    readonly cuts: readonly Cut[]
+
+    readonly colorMap: ReadonlyMap<number, THREE.Color>
 }
